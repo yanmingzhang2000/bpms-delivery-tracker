@@ -84,3 +84,56 @@ export interface BudgetRow {
   /** 备注 */
   remark: string;
 }
+
+/**
+ * 请款单状态：对应 BPMS 截图里的"订单状态"流转条，系统维护，用户不可编辑。
+ * 草稿 → 审批中(报价) → 审批通过(报价) → 审批中(请款) → 审批通过(请款)，任一审批环节都可能被驳回。
+ */
+export type PaymentRequestStatus =
+  | "草稿"
+  | "审批中(报价)"
+  | "审批通过(报价)"
+  | "审批中(请款)"
+  | "审批通过(请款)"
+  | "已驳回";
+
+/**
+ * 请款单（请款 Tracker 的行数据）。
+ * 字段来源：BPMS 采购订单详情页的"账期信息"模块（付款方式=请款 时展示的内容），
+ * 以及"易快报请款详情"模块（财务系统同步回来的只读金额，用于展示申请/已付进度）。
+ * 通过 orderSeq / offerNo 关联到采购订单 Tracker 里的具体订单。
+ */
+export interface PaymentRequestRow {
+  /** 请款单状态：系统自动维护，用户不可编辑 */
+  status: PaymentRequestStatus;
+  /** 关联的采购订单序号（对应 MainRow.seq） */
+  orderSeq: number;
+  /** 关联的达人营销Offer编号（对应 MainRow.offerNo，便于直接查看） */
+  offerNo: string;
+  /** 手续费承担方 */
+  feeBearer: string;
+  /** 付款周期 */
+  paymentCycle: string;
+  /** 付款方式：请款单场景下通常固定为"请款" */
+  paymentMethod: string;
+  /** 我方签约主体 */
+  contractEntity: string;
+  /** 币种 */
+  currency: string;
+  /** 收款主体名称 */
+  payeeEntityName: string;
+  /** 收款账户：银行账号/第三方支付账号等 */
+  payeeAccount: string;
+  /** 期望付款时间 YYYY/MM/DD */
+  expectedPaymentDate: string;
+  /** 财务已付款金额：易快报同步，只读 */
+  paidAmount: number | null;
+  /** 累计已申请付款金额：易快报同步，只读 */
+  cumulativeRequestedAmount: number | null;
+  /** 申请中的金额：易快报同步，只读 */
+  pendingRequestAmount: number | null;
+  /** 剩余可申请付款金额：易快报同步，只读 */
+  remainingRequestableAmount: number | null;
+  /** 备注 */
+  remark: string;
+}

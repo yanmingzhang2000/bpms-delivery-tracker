@@ -89,3 +89,13 @@ export const ENTITY_FIXED_CURRENCY: Record<string, string> = {
 
 /** offer预算项可选值（示例，真实场景应来自主表"成本类型"等配置） */
 export const BUDGET_ITEM_OPTIONS = ["达人成本", "投流成本", "其他成本"] as const;
+
+/** 请款单状态可选值（系统维护，仅用于只读展示/下拉筛选，不支持用户手动改） */
+export const PAYMENT_REQUEST_STATUS_OPTIONS = [
+  "草稿",
+  "审批中(报价)",
+  "审批通过(报价)",
+  "审批中(请款)",
+  "审批通过(请款)",
+  "已驳回",
+] as const;

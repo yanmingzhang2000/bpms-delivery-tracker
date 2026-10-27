@@ -76,6 +76,26 @@ export function tradeStatusCell(value: "未录入" | "已录入"): GridCell {
   };
 }
 
+/** 请款单状态只读单元格：系统维护字段，按状态分组上色（草稿灰、审批中黄、审批通过绿、已驳回红） */
+export function paymentRequestStatusCell(value: string): GridCell {
+  let theme = { textDark: "#8a8f98", bgCell: "#f0f1f3" }; // 默认：草稿
+  if (value.startsWith("审批中")) {
+    theme = { textDark: "#9a6400", bgCell: "#fff6e0" };
+  } else if (value.startsWith("审批通过")) {
+    theme = { textDark: "#0a7a3d", bgCell: "#e6f6ec" };
+  } else if (value === "已驳回") {
+    theme = { textDark: "#c0362c", bgCell: "#fdecea" };
+  }
+  return {
+    kind: GridCellKind.Text,
+    data: value,
+    displayData: value,
+    allowOverlay: false,
+    readonly: true,
+    themeOverride: theme,
+  };
+}
+
 /** 单选下拉枚举单元格（来自 glide-data-grid-cells 的 DropdownCell） */
 export function dropdownCell(
   value: string,
