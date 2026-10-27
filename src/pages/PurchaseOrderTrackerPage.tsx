@@ -22,7 +22,9 @@ interface TradeRunSummary {
 interface PaymentRequestRunSummary {
   successSeqs: number[];
   /** 付款方式不是"请款"，不允许发起 */
-  notApplicable: { seq: number; offerNo: string; paymentMethod: string }[];
+  wrongPaymentMethod: { seq: number; offerNo: string; paymentMethod: string }[];
+  /** 合作附件尚未生成，按业务流程（Trade→合同→请款）必须先生成合同才能发起请款 */
+  agreementNotReady: { seq: number; offerNo: string }[];
   /** 本地必填校验未通过 */
   validationFailures: { seq: number; offerNo: string; missingFields: string[] }[];
 }
@@ -32,6 +34,8 @@ interface AgreementRunSummary {
   successSeqs: number[];
   /** 成本类型=投流成本，不需要合作附件 */
   notApplicable: { seq: number; offerNo: string; costType: string }[];
+  /** Trade 尚未录入，按业务流程（Trade→合同→请款）必须先录入 Trade 才能生成合同 */
+  tradeNotReady: { seq: number; offerNo: string }[];
 }
 
 interface PurchaseOrderTrackerPageProps {
@@ -160,15 +164,26 @@ export default function PurchaseOrderTrackerPage({
     setIsInitiatingPayment(true);
 
     const successSeqs: number[] = [];
-    const notApplicable: PaymentRequestRunSummary["notApplicable"] = [];
+    const wrongPaymentMethod: PaymentRequestRunSummary["wrongPaymentMethod"] = [];
+    const agreementNotReady: PaymentRequestRunSummary["agreementNotReady"] = [];
     const validationFailures: PaymentRequestRunSummary["validationFailures"] = [];
     const newPaymentRequests: PaymentRequestRow[] = [];
 
     for (const idx of targetIndexes) {
       const row = mainRows[idx];
-      // 只有付款方式=请款的订单才需要走请款流程
       if (!canInitiatePaymentRequest(row)) {
-        notApplicable.push({ seq: row.seq, offerNo: row.offerNo, paymentMethod: row.paymentMethod || "（未填写）" });
+        // 细分两种不满足前置条件的情况，分别提示：
+        // 1. 付款方式不是"请款"，本来就不需要走这个流程
+        // 2. 业务流程要求 Trade → 合同 → 请款，合作附件（合同）还没生成，不能发起请款
+        if (row.paymentMethod !== "请款") {
+          wrongPaymentMethod.push({
+            seq: row.seq,
+            offerNo: row.offerNo,
+            paymentMethod: row.paymentMethod || "（未填写）",
+          });
+        } else {
+          agreementNotReady.push({ seq: row.seq, offerNo: row.offerNo });
+        }
         continue;
       }
       // 必填字段不全的订单不允许发起请款，复用和"录Trade"相同的必填校验规则
@@ -195,7 +210,7 @@ export default function PurchaseOrderTrackerPage({
       );
     }
 
-    setPaymentRunSummary({ successSeqs, notApplicable, validationFailures });
+    setPaymentRunSummary({ successSeqs, wrongPaymentMethod, agreementNotReady, validationFailures });
     setIsInitiatingPayment(false);
     setCheckedRows(new Set());
 
@@ -223,12 +238,18 @@ export default function PurchaseOrderTrackerPage({
 
     const successSeqs: number[] = [];
     const notApplicable: AgreementRunSummary["notApplicable"] = [];
+    const tradeNotReady: AgreementRunSummary["tradeNotReady"] = [];
 
-    // 投流成本的订单不涉及达人/供应商合作，不需要生成合作附件
     for (const idx of targetIndexes) {
       const row = mainRows[idx];
+      // 投流成本的订单不涉及达人/供应商合作，不需要生成合作附件
       if (row.costType === "投流成本") {
         notApplicable.push({ seq: row.seq, offerNo: row.offerNo, costType: row.costType || "（未填写）" });
+        continue;
+      }
+      // 业务流程要求：Trade → 合同 → 请款，必须先录入 Trade 才能生成合同
+      if (row.tradeStatus !== "已录入") {
+        tradeNotReady.push({ seq: row.seq, offerNo: row.offerNo });
         continue;
       }
       successSeqs.push(row.seq);
@@ -251,7 +272,7 @@ export default function PurchaseOrderTrackerPage({
       );
     }
 
-    setAgreementRunSummary({ successSeqs, notApplicable });
+    setAgreementRunSummary({ successSeqs, notApplicable, tradeNotReady });
     setIsGeneratingAgreement(false);
     setCheckedRows(new Set());
   }, [mainRows, checkedRows, pendingAgreementCount, isGeneratingAgreement, mainState]);
@@ -281,10 +302,10 @@ export default function PurchaseOrderTrackerPage({
         放弃改动"——改动会先暂存，点击"保存"才会正式生效，点击"放弃改动"可以撤销还没保存的编辑。
         点击主表任意一行，下方预算明细会自动联动筛选；勾选主表左侧复选框后可点击"录Trade"批量提交
         （模拟真实 BPMS 接口按单条处理：先做本地必填校验，通过后再逐条调用接口，接口有概率模拟业务失败，
-        该操作会立即生效，不受"放弃改动"影响）；也可以点击"发起请款"，为付款方式=请款、且必填字段已填全的
-        订单生成请款单，自动跳转到"请款 Tracker"并高亮刚生成的记录；或点击"生成合作附件"，为非投流成本的订单
-        生成合作协议链接，生成后可以直接点击"合作附件链接"列跳转查看。必填字段为空时会用浅红色标出；
-        Trade 状态、发起请款状态、合作附件生成状态均为系统字段，不可手动编辑。
+        该操作会立即生效，不受"放弃改动"影响）。业务流程要求 Trade → 合作附件（合同） → 请款 依次推进：
+        先点击"生成合作附件"为非投流成本、且已录入 Trade 的订单生成合同链接；合同生成后才能点击"发起请款"
+        为付款方式=请款、且必填字段已填全的订单生成请款单，自动跳转到"请款 Tracker"并高亮刚生成的记录。
+        必填字段为空时会用浅红色标出；Trade 状态、发起请款状态、合作附件生成状态均为系统字段，不可手动编辑。
       </p>
 
       <section style={{ flex: "1 1 60%", minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -546,8 +567,8 @@ function PaymentRequestRunSummaryPanel({
   summary: PaymentRequestRunSummary;
   onClose: () => void;
 }) {
-  const { successSeqs, notApplicable, validationFailures } = summary;
-  const totalSkipped = notApplicable.length + validationFailures.length;
+  const { successSeqs, wrongPaymentMethod, agreementNotReady, validationFailures } = summary;
+  const totalSkipped = wrongPaymentMethod.length + agreementNotReady.length + validationFailures.length;
 
   return (
     <div
@@ -582,15 +603,30 @@ function PaymentRequestRunSummaryPanel({
         </button>
       </div>
 
-      {notApplicable.length > 0 && (
+      {wrongPaymentMethod.length > 0 && (
         <div style={{ marginTop: 8 }}>
           <div style={{ color: "#c0362c", fontWeight: 600 }}>
             付款方式非"请款"，不需要发起请款：
           </div>
           <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
-            {notApplicable.map((f) => (
+            {wrongPaymentMethod.map((f) => (
               <li key={f.seq}>
                 序号 {f.seq}（{f.offerNo || "无Offer编号"}）：当前付款方式为"{f.paymentMethod}"
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {agreementNotReady.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ color: "#c0362c", fontWeight: 600 }}>
+            合作附件（合同）尚未生成，请先生成合作附件再发起请款：
+          </div>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+            {agreementNotReady.map((f) => (
+              <li key={f.seq}>
+                序号 {f.seq}（{f.offerNo || "无Offer编号"}）
               </li>
             ))}
           </ul>
@@ -623,7 +659,8 @@ function AgreementRunSummaryPanel({
   summary: AgreementRunSummary;
   onClose: () => void;
 }) {
-  const { successSeqs, notApplicable } = summary;
+  const { successSeqs, notApplicable, tradeNotReady } = summary;
+  const totalSkipped = notApplicable.length + tradeNotReady.length;
 
   return (
     <div
@@ -642,9 +679,7 @@ function AgreementRunSummaryPanel({
         <strong style={{ fontSize: 13 }}>
           生成合作附件 结果：
           <span style={{ color: "#0a7a3d" }}> 成功生成 {successSeqs.length} 条</span>
-          {notApplicable.length > 0 && (
-            <span style={{ color: "#c0362c" }}>，跳过 {notApplicable.length} 条</span>
-          )}
+          {totalSkipped > 0 && <span style={{ color: "#c0362c" }}>，跳过 {totalSkipped} 条</span>}
         </strong>
         <button
           onClick={onClose}
@@ -669,6 +704,21 @@ function AgreementRunSummaryPanel({
             {notApplicable.map((f) => (
               <li key={f.seq}>
                 序号 {f.seq}（{f.offerNo || "无Offer编号"}）：当前成本类型为"{f.costType}"
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {tradeNotReady.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ color: "#c0362c", fontWeight: 600 }}>
+            Trade 尚未录入，请先录入 Trade 再生成合作附件：
+          </div>
+          <ul style={{ margin: "4px 0 0", paddingLeft: 18 }}>
+            {tradeNotReady.map((f) => (
+              <li key={f.seq}>
+                序号 {f.seq}（{f.offerNo || "无Offer编号"}）
               </li>
             ))}
           </ul>

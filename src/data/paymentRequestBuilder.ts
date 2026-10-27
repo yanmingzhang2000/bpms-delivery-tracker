@@ -29,7 +29,11 @@ export function buildPaymentRequestFromOrder(order: MainRow): PaymentRequestRow 
   };
 }
 
-/** 只有付款方式为"请款"的订单才允许发起请款 */
+/**
+ * 只有付款方式为"请款"、且合作附件已生成的订单才允许发起请款。
+ * 业务流程要求先完成 Trade 录入、再生成合作附件（合同），最后才能发起请款，
+ * 所以这里把"合同已生成"作为发起请款的前置条件。
+ */
 export function canInitiatePaymentRequest(order: MainRow): boolean {
-  return order.paymentMethod === "请款";
+  return order.paymentMethod === "请款" && order.agreementStatus === "已生成";
 }
