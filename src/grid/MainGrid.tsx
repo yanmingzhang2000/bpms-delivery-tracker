@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CompactSelection,
   DataEditor,
   GridCellKind,
   type EditableGridCell,
+  type EditListItem,
   type GridCell,
   type GridColumn,
   type GridSelection,
@@ -84,21 +85,28 @@ export default function MainGrid({
 }: MainGridProps) {
   const [columns, setColumns] = useState<GridColumn[]>(mainColumns);
 
-  // 用 glide-data-grid 内置的行选择（rowMarkers="both"）来承载"勾选"交互，
-  // 对外通过 checkedRows（Set<行号>）暴露，供"录Trade"按钮读取。
-  const gridSelection: GridSelection = useMemo(() => {
+  // gridSelection 是受控属性，必须同时管理 current（当前聚焦/编辑中的单元格）、
+  // columns、rows 三部分。之前的实现只把 rows（勾选的行）纳入状态，current 永远是
+  // undefined，导致双击单元格时 Grid 内部认为"没有单元格可以被激活"，编辑弹层
+  // 完全打不开。现在把完整的 GridSelection 存成 state，勾选行时只替换 rows 字段，
+  // 其余交互（点击/双击进入编辑）通过 onGridSelectionChange 原样同步 current。
+  const [gridSelection, setGridSelection] = useState<GridSelection>({
+    columns: CompactSelection.empty(),
+    rows: CompactSelection.empty(),
+  });
+
+  // 勾选变化（来自 checkedRows 这个 prop）时，只同步 rows 部分，保留当前的 current/columns
+  useEffect(() => {
     let rowSelection = CompactSelection.empty();
     for (const rowIndex of checkedRows) {
       rowSelection = rowSelection.add(rowIndex);
     }
-    return {
-      columns: CompactSelection.empty(),
-      rows: rowSelection,
-    };
+    setGridSelection((prev) => ({ ...prev, rows: rowSelection }));
   }, [checkedRows]);
 
   const onGridSelectionChange = useCallback(
     (newSelection: GridSelection) => {
+      setGridSelection(newSelection);
       onCheckedRowsChange(new Set(newSelection.rows.toArray()));
     },
     [onCheckedRowsChange]
@@ -275,30 +283,30 @@ export default function MainGrid({
   const onCellEdited = useCallback(
     (item: Item, newValue: EditableGridCell) => {
       const [col, row] = item;
-      const colDef = mainColumns[col];
       const record = rows[row];
       if (!record) return;
-
-      const next = { ...record };
-
-      if (newValue.kind === GridCellKind.Custom) {
-        const data = (newValue as any).data;
-        if (data?.kind === "dropdown-cell") {
-          applyDropdownChange(next, colDef.id, data.value ?? "");
-        } else if (data?.kind === "date-picker-cell") {
-          (next as any)[colDef.id] = formatSlashDate(data.date ?? null);
-        } else if (data?.kind === "multi-select-cell") {
-          (next as any)[colDef.id] = data.values ?? [];
-        }
-      } else if (newValue.kind === GridCellKind.Text) {
-        (next as any)[colDef.id] = newValue.data ?? "";
-      } else if (newValue.kind === GridCellKind.Number) {
-        (next as any)[colDef.id] = newValue.data ?? null;
-      }
-
+      const next = applyCellEdit(record, mainColumns[col].id, newValue);
       const updated = [...rows];
       updated[row] = next;
       onRowsChange(updated);
+    },
+    [rows, onRowsChange]
+  );
+
+  // Excel 风格拖拽填充（fillHandle）会一次性产出多个单元格的编辑，走这个回调；
+  // 不读/不只读的目标格子会按同样规则逐一应用更新，只读格子（由 getCellContent 决定）
+  // 在拖拽过程中已经不会被 Grid 纳入填充目标，这里仅做防御性跳过。
+  const onCellsEdited = useCallback(
+    (newValues: readonly EditListItem[]) => {
+      const updated = [...rows];
+      for (const { location, value } of newValues) {
+        const [col, row] = location;
+        const record = updated[row];
+        if (!record) continue;
+        updated[row] = applyCellEdit(record, mainColumns[col].id, value);
+      }
+      onRowsChange(updated);
+      return true;
     },
     [rows, onRowsChange]
   );
@@ -324,6 +332,7 @@ export default function MainGrid({
       rows={rows.length}
       getCellContent={getCellContent}
       onCellEdited={onCellEdited}
+      onCellsEdited={onCellsEdited}
       onColumnResize={onColumnResize}
       onCellClicked={onCellClicked}
       freezeColumns={MAIN_FROZEN_COLUMNS}
@@ -332,6 +341,8 @@ export default function MainGrid({
       gridSelection={gridSelection}
       onGridSelectionChange={onGridSelectionChange}
       rowSelect="multi"
+      cellActivationBehavior="single-click"
+      fillHandle
       smoothScrollX
       smoothScrollY
       width="100%"
@@ -344,6 +355,28 @@ export default function MainGrid({
       rowHeight={34}
     />
   );
+}
+
+/** 把一次单元格编辑（单条编辑或拖拽填充中的一格）应用到行数据上，返回更新后的新对象 */
+function applyCellEdit(record: MainRow, fieldId: string, newValue: EditableGridCell): MainRow {
+  const next = { ...record };
+
+  if (newValue.kind === GridCellKind.Custom) {
+    const data = (newValue as any).data;
+    if (data?.kind === "dropdown-cell") {
+      applyDropdownChange(next, fieldId, data.value ?? "");
+    } else if (data?.kind === "date-picker-cell") {
+      (next as any)[fieldId] = formatSlashDate(data.date ?? null);
+    } else if (data?.kind === "multi-select-cell") {
+      (next as any)[fieldId] = data.values ?? [];
+    }
+  } else if (newValue.kind === GridCellKind.Text) {
+    (next as any)[fieldId] = newValue.data ?? "";
+  } else if (newValue.kind === GridCellKind.Number) {
+    (next as any)[fieldId] = newValue.data ?? null;
+  }
+
+  return next;
 }
 
 /** 处理下拉枚举字段的变化，并应用联动规则（成本类型/付款方式/我方签约主体/发票类型 等驱动的字段） */

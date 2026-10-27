@@ -7,6 +7,9 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Glide Data Grid 的单元格编辑弹层（文本框/下拉/日期选择器等）依赖这个 portal 容器挂载，
+         缺少它会导致双击单元格没有任何编辑反应。详见官方文档 Basic Usage 一节。 -->
+    <div id="portal" style="position: fixed; left: 0; top: 0; z-index: 9999"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

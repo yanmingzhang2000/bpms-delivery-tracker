@@ -3,6 +3,7 @@ import {
   DataEditor,
   GridCellKind,
   type EditableGridCell,
+  type EditListItem,
   type GridCell,
   type GridColumn,
   type Item,
@@ -89,28 +90,28 @@ export default function PaymentRequestGrid({ rows, onRowsChange }: PaymentReques
   const onCellEdited = useCallback(
     (item: Item, newValue: EditableGridCell) => {
       const [col, row] = item;
-      const colDef = paymentRequestColumns[col];
       const record = rows[row];
       if (!record) return;
-
-      const next = { ...record };
-
-      if (newValue.kind === GridCellKind.Custom) {
-        const data = (newValue as any).data;
-        if (data?.kind === "dropdown-cell") {
-          (next as any)[colDef.id] = data.value ?? "";
-        } else if (data?.kind === "date-picker-cell") {
-          (next as any)[colDef.id] = formatSlashDate(data.date ?? null);
-        }
-      } else if (newValue.kind === GridCellKind.Text) {
-        (next as any)[colDef.id] = newValue.data ?? "";
-      } else if (newValue.kind === GridCellKind.Number) {
-        (next as any)[colDef.id] = newValue.data ?? null;
-      }
-
+      const next = applyCellEdit(record, paymentRequestColumns[col].id, newValue);
       const updated = [...rows];
       updated[row] = next;
       onRowsChange(updated);
+    },
+    [rows, onRowsChange]
+  );
+
+  // Excel 风格拖拽填充（fillHandle）会一次性产出多个单元格的编辑，走这个回调
+  const onCellsEdited = useCallback(
+    (newValues: readonly EditListItem[]) => {
+      const updated = [...rows];
+      for (const { location, value } of newValues) {
+        const [col, row] = location;
+        const record = updated[row];
+        if (!record) continue;
+        updated[row] = applyCellEdit(record, paymentRequestColumns[col].id, value);
+      }
+      onRowsChange(updated);
+      return true;
     },
     [rows, onRowsChange]
   );
@@ -127,10 +128,13 @@ export default function PaymentRequestGrid({ rows, onRowsChange }: PaymentReques
       rows={rows.length}
       getCellContent={getCellContent}
       onCellEdited={onCellEdited}
+      onCellsEdited={onCellsEdited}
       onColumnResize={onColumnResize}
       freezeColumns={PAYMENT_REQUEST_FROZEN_COLUMNS}
       customRenderers={allCells}
       rowMarkers="number"
+      cellActivationBehavior="single-click"
+      fillHandle
       smoothScrollX
       smoothScrollY
       width="100%"
@@ -138,4 +142,28 @@ export default function PaymentRequestGrid({ rows, onRowsChange }: PaymentReques
       rowHeight={34}
     />
   );
+}
+
+/** 把一次单元格编辑（单条编辑或拖拽填充中的一格）应用到行数据上，返回更新后的新对象 */
+function applyCellEdit(
+  record: PaymentRequestRow,
+  fieldId: string,
+  newValue: EditableGridCell
+): PaymentRequestRow {
+  const next = { ...record };
+
+  if (newValue.kind === GridCellKind.Custom) {
+    const data = (newValue as any).data;
+    if (data?.kind === "dropdown-cell") {
+      (next as any)[fieldId] = data.value ?? "";
+    } else if (data?.kind === "date-picker-cell") {
+      (next as any)[fieldId] = formatSlashDate(data.date ?? null);
+    }
+  } else if (newValue.kind === GridCellKind.Text) {
+    (next as any)[fieldId] = newValue.data ?? "";
+  } else if (newValue.kind === GridCellKind.Number) {
+    (next as any)[fieldId] = newValue.data ?? null;
+  }
+
+  return next;
 }

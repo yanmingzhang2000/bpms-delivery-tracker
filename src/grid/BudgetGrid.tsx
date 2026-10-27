@@ -3,6 +3,7 @@ import {
   DataEditor,
   GridCellKind,
   type EditableGridCell,
+  type EditListItem,
   type GridCell,
   type GridColumn,
   type Item,
@@ -59,26 +60,29 @@ export default function BudgetGrid({ rows, onRowsChange, filterSeq }: BudgetGrid
   const onCellEdited = useCallback(
     (item: Item, newValue: EditableGridCell) => {
       const [col, row] = item;
-      const colDef = budgetColumns[col];
       const entry = visibleRows[row];
       if (!entry) return;
-
-      const next = { ...entry.row };
-
-      if (newValue.kind === GridCellKind.Custom) {
-        const data = (newValue as any).data;
-        if (data?.kind === "dropdown-cell") {
-          (next as any)[colDef.id] = data.value ?? "";
-        }
-      } else if (newValue.kind === GridCellKind.Text) {
-        (next as any)[colDef.id] = newValue.data ?? "";
-      } else if (newValue.kind === GridCellKind.Number) {
-        (next as any)[colDef.id] = newValue.data ?? 0;
-      }
-
+      const next = applyCellEdit(entry.row, budgetColumns[col].id, newValue);
       const updated = [...rows];
       updated[entry.originalIndex] = next;
       onRowsChange(updated);
+    },
+    [rows, visibleRows, onRowsChange]
+  );
+
+  // Excel 风格拖拽填充（fillHandle）一次性产出多个单元格的编辑，这里按可见行号
+  // 映射回 rows 的原始下标后再应用更新。
+  const onCellsEdited = useCallback(
+    (newValues: readonly EditListItem[]) => {
+      const updated = [...rows];
+      for (const { location, value } of newValues) {
+        const [col, row] = location;
+        const entry = visibleRows[row];
+        if (!entry) continue;
+        updated[entry.originalIndex] = applyCellEdit(entry.row, budgetColumns[col].id, value);
+      }
+      onRowsChange(updated);
+      return true;
     },
     [rows, visibleRows, onRowsChange]
   );
@@ -95,10 +99,13 @@ export default function BudgetGrid({ rows, onRowsChange, filterSeq }: BudgetGrid
       rows={visibleRows.length}
       getCellContent={getCellContent}
       onCellEdited={onCellEdited}
+      onCellsEdited={onCellsEdited}
       onColumnResize={onColumnResize}
       freezeColumns={BUDGET_FROZEN_COLUMNS}
       customRenderers={allCells}
       rowMarkers="number"
+      cellActivationBehavior="single-click"
+      fillHandle
       smoothScrollX
       smoothScrollY
       width="100%"
@@ -106,4 +113,26 @@ export default function BudgetGrid({ rows, onRowsChange, filterSeq }: BudgetGrid
       rowHeight={34}
     />
   );
+}
+
+/** 把一次单元格编辑（单条编辑或拖拽填充中的一格）应用到行数据上，返回更新后的新对象 */
+function applyCellEdit(
+  record: BudgetRow,
+  fieldId: string,
+  newValue: EditableGridCell
+): BudgetRow {
+  const next = { ...record };
+
+  if (newValue.kind === GridCellKind.Custom) {
+    const data = (newValue as any).data;
+    if (data?.kind === "dropdown-cell") {
+      (next as any)[fieldId] = data.value ?? "";
+    }
+  } else if (newValue.kind === GridCellKind.Text) {
+    (next as any)[fieldId] = newValue.data ?? "";
+  } else if (newValue.kind === GridCellKind.Number) {
+    (next as any)[fieldId] = newValue.data ?? 0;
+  }
+
+  return next;
 }

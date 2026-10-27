@@ -5,6 +5,8 @@ import { initialBudgetRows, initialMainRows } from "../data/sampleData";
 import type { BudgetRow, MainRow } from "../data/types";
 import { getMissingFieldLabels } from "../data/validation";
 import { mockRecordTradeApi } from "../data/tradeApi";
+import { useDraftState } from "../hooks/useDraftState";
+import SaveBar from "../components/SaveBar";
 
 /** 一次"录Trade"批量操作的结果汇总，用于结果面板展示 */
 interface TradeRunSummary {
@@ -16,8 +18,11 @@ interface TradeRunSummary {
 }
 
 export default function PurchaseOrderTrackerPage() {
-  const [mainRows, setMainRows] = useState<MainRow[]>(initialMainRows);
-  const [budgetRows, setBudgetRows] = useState<BudgetRow[]>(initialBudgetRows);
+  const mainState = useDraftState<MainRow[]>(initialMainRows);
+  const budgetState = useDraftState<BudgetRow[]>(initialBudgetRows);
+  const mainRows = mainState.draft;
+  const budgetRows = budgetState.draft;
+
   const [selectedSeq, setSelectedSeq] = useState<number | null>(initialMainRows[0]?.seq ?? null);
   // 勾选的行号（mainRows 数组下标），用于"录Trade"批量操作
   const [checkedRows, setCheckedRows] = useState<ReadonlySet<number>>(new Set());
@@ -74,11 +79,15 @@ export default function PurchaseOrderTrackerPage() {
       }
     });
 
-    // 第三步：只把接口返回成功的行改成"已录入"；校验失败/接口失败的行保持"未录入"，可以修正后重新提交
+    // 第三步：只把接口返回成功的行改成"已录入"。
+    // 这一步跳过草稿机制，直接写入 committed：因为接口已经真实调用成功，
+    // 这个状态变化不应该被后续的"放弃改动"撤销（否则会出现"接口已成功、
+    // 界面却退回未录入"的数据不一致）。校验失败/接口失败的行保持"未录入"，
+    // 可以修正后重新提交。
     if (successSeqs.length > 0) {
       const successSet = new Set(successSeqs);
-      setMainRows((prev) =>
-        prev.map((row) =>
+      mainState.commitDirectly((current) =>
+        current.map((row) =>
           successSet.has(row.seq) && row.tradeStatus === "未录入"
             ? { ...row, tradeStatus: "已录入" as const }
             : row
@@ -89,7 +98,7 @@ export default function PurchaseOrderTrackerPage() {
     setRunSummary({ successSeqs, validationFailures, apiFailures });
     setIsRecording(false);
     setCheckedRows(new Set());
-  }, [mainRows, checkedRows, pendingCount, isRecording]);
+  }, [mainRows, checkedRows, pendingCount, isRecording, mainState]);
 
   const selectedMainRow = useMemo(
     () => mainRows.find((r) => r.seq === selectedSeq) ?? null,
@@ -112,9 +121,11 @@ export default function PurchaseOrderTrackerPage() {
       }}
     >
       <p style={{ margin: 0, color: "#666", fontSize: 13 }}>
+        点击任意格子即可编辑，选中格子右下角可拖拽填充（类似 Excel）；主表和预算子表各自独立"保存 /
+        放弃改动"——改动会先暂存，点击"保存"才会正式生效，点击"放弃改动"可以撤销还没保存的编辑。
         点击主表任意一行，下方预算明细会自动联动筛选；勾选主表左侧复选框后可点击"录Trade"批量提交
-        （模拟真实 BPMS 接口按单条处理：先做本地必填校验，通过后再逐条调用接口，接口有概率模拟业务失败）。
-        必填字段为空时会用浅红色标出；Trade 状态为系统字段，不可手动编辑。
+        （模拟真实 BPMS 接口按单条处理：先做本地必填校验，通过后再逐条调用接口，接口有概率模拟业务失败，
+        该操作会立即生效，不受"放弃改动"影响）。必填字段为空时会用浅红色标出；Trade 状态为系统字段，不可手动编辑。
       </p>
 
       <section style={{ flex: "1 1 60%", minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -156,12 +167,17 @@ export default function PurchaseOrderTrackerPage() {
             >
               {isRecording ? "录入中…" : `录Trade${pendingCount > 0 ? `（${pendingCount}）` : ""}`}
             </button>
+            <SaveBar
+              isDirty={mainState.isDirty}
+              onSave={mainState.save}
+              onDiscard={mainState.discard}
+            />
           </div>
         </div>
         <div style={{ flex: 1, minHeight: 0, border: "1px solid #e1e4e8", borderRadius: 6 }}>
           <MainGrid
             rows={mainRows}
-            onRowsChange={setMainRows}
+            onRowsChange={mainState.setDraft}
             selectedSeq={selectedSeq}
             onSelectRow={setSelectedSeq}
             checkedRows={checkedRows}
@@ -194,24 +210,31 @@ export default function PurchaseOrderTrackerPage() {
               <span style={{ fontWeight: 400, color: "#666" }}> —— 显示全部</span>
             )}
           </div>
-          {selectedSeq != null && (
-            <button
-              onClick={() => setSelectedSeq(null)}
-              style={{
-                border: "1px solid #d0d5dd",
-                background: "#fff",
-                borderRadius: 4,
-                padding: "4px 10px",
-                fontSize: 12,
-                cursor: "pointer",
-              }}
-            >
-              清除筛选，查看全部预算项
-            </button>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {selectedSeq != null && (
+              <button
+                onClick={() => setSelectedSeq(null)}
+                style={{
+                  border: "1px solid #d0d5dd",
+                  background: "#fff",
+                  borderRadius: 4,
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                清除筛选，查看全部预算项
+              </button>
+            )}
+            <SaveBar
+              isDirty={budgetState.isDirty}
+              onSave={budgetState.save}
+              onDiscard={budgetState.discard}
+            />
+          </div>
         </div>
         <div style={{ flex: 1, minHeight: 0, border: "1px solid #e1e4e8", borderRadius: 6 }}>
-          <BudgetGrid rows={budgetRows} onRowsChange={setBudgetRows} filterSeq={selectedSeq} />
+          <BudgetGrid rows={budgetRows} onRowsChange={budgetState.setDraft} filterSeq={selectedSeq} />
         </div>
       </section>
     </div>
