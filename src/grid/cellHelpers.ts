@@ -49,6 +49,24 @@ export function numberCell(
   };
 }
 
+/**
+ * 链接单元格：有值时显示为可点击的蓝色链接文字（点击在新标签页打开），
+ * 没有值时显示为空的只读文本格子（还没"生成"过）。
+ */
+export function linkCell(url: string, readonly = true): GridCell {
+  if (!url) {
+    return textCell("", readonly);
+  }
+  return {
+    kind: GridCellKind.Uri,
+    data: url,
+    displayData: url,
+    allowOverlay: !readonly,
+    readonly,
+    hoverEffect: true,
+  };
+}
+
 /** 只读序号单元格 */
 export function readonlySeqCell(value: number): GridCell {
   return {
@@ -72,6 +90,36 @@ export function tradeStatusCell(value: "未录入" | "已录入"): GridCell {
     readonly: true,
     themeOverride: isDone
       ? { textDark: "#0a7a3d", bgCell: "#e6f6ec" }
+      : { textDark: "#8a8f98", bgCell: "#f0f1f3" },
+  };
+}
+
+/** 发起请款状态只读单元格：系统维护字段，用颜色区分"未发起/已发起"，禁止用户编辑 */
+export function paymentRequestInitiationCell(value: "未发起" | "已发起"): GridCell {
+  const isDone = value === "已发起";
+  return {
+    kind: GridCellKind.Text,
+    data: value,
+    displayData: value,
+    allowOverlay: false,
+    readonly: true,
+    themeOverride: isDone
+      ? { textDark: "#7a4fd1", bgCell: "#f1ebfb" }
+      : { textDark: "#8a8f98", bgCell: "#f0f1f3" },
+  };
+}
+
+/** 合作附件生成状态只读单元格：系统维护字段，用颜色区分"未生成/已生成"，禁止用户编辑 */
+export function agreementStatusCell(value: "未生成" | "已生成"): GridCell {
+  const isDone = value === "已生成";
+  return {
+    kind: GridCellKind.Text,
+    data: value,
+    displayData: value,
+    allowOverlay: false,
+    readonly: true,
+    themeOverride: isDone
+      ? { textDark: "#1a7f9c", bgCell: "#e3f4f8" }
       : { textDark: "#8a8f98", bgCell: "#f0f1f3" },
   };
 }

@@ -4,6 +4,8 @@ import { type GridColumn } from "@glideapps/glide-data-grid";
 // id 必须与 MainRow 的 key 一一对应，供 getCellContent / onCellEdited 使用。
 export const mainColumns: (GridColumn & { id: string })[] = [
   { id: "tradeStatus", title: "Trade状态", width: 100 },
+  { id: "paymentRequestStatus", title: "发起请款状态", width: 120 },
+  { id: "agreementStatus", title: "合作附件生成状态", width: 140 },
   { id: "seq", title: "导入序号（不可删除）*", width: 90 },
   { id: "to", title: "TO*", width: 110 },
   { id: "studio", title: "工作室*", width: 110 },
@@ -29,6 +31,7 @@ export const mainColumns: (GridColumn & { id: string })[] = [
   { id: "payeeEntityNo", title: "收款主体编号", width: 150 },
   { id: "expectedPaymentDate", title: "期望付款时间", width: 130 },
   { id: "attachmentType", title: "合作信息附件类型", width: 150 },
+  { id: "agreementLink", title: "合作附件链接", width: 180 },
   { id: "vendorContractNo", title: "供应商合同编号", width: 180 },
   { id: "contentForm", title: "内容形式", width: 100 },
   { id: "authDuration", title: "授权时长(月)", width: 120 },
@@ -38,4 +41,4 @@ export const mainColumns: (GridColumn & { id: string })[] = [
   { id: "remark", title: "备注", width: 200 },
 ];
 
-export const MAIN_FROZEN_COLUMNS = 3; // 冻结 Trade状态 + 序号 + TO 三列
+export const MAIN_FROZEN_COLUMNS = 5; // 冻结 Trade状态 + 发起请款状态 + 合作附件生成状态 + 序号 + TO 五列

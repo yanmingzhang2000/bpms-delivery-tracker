@@ -40,3 +40,6 @@ export function useDraftState<T>(initialValue: T) {
 
   return { draft, setDraft, isDirty, save, discard, commitDirectly };
 }
+
+/** useDraftState 的返回值类型，便于在 props 里声明 */
+export type DraftState<T> = ReturnType<typeof useDraftState<T>>;

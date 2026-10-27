@@ -3,6 +3,9 @@ import "@glideapps/glide-data-grid/dist/index.css";
 import "@glideapps/glide-data-grid-cells/dist/index.css";
 import PurchaseOrderTrackerPage from "./pages/PurchaseOrderTrackerPage";
 import PaymentRequestTrackerPage from "./pages/PaymentRequestTrackerPage";
+import { initialMainRows, initialPaymentRequestRows } from "./data/sampleData";
+import type { MainRow, PaymentRequestRow } from "./data/types";
+import { useDraftState } from "./hooks/useDraftState";
 
 type TabKey = "purchaseOrder" | "paymentRequest";
 
@@ -13,6 +16,19 @@ const TABS: { key: TabKey; label: string }[] = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("purchaseOrder");
+
+  // mainRows 和 paymentRequestRows 提升到这一层管理，因为"发起请款"这个操作
+  // 需要同时读写两张表（从采购订单主表生成请款单，并跳转到请款 Tracker 高亮展示）。
+  const mainState = useDraftState<MainRow[]>(initialMainRows);
+  const paymentRequestState = useDraftState<PaymentRequestRow[]>(initialPaymentRequestRows);
+
+  // 发起请款成功后，记录刚生成的请款单关联的订单序号，用于在请款 Tracker 里高亮这些行
+  const [highlightOrderSeqs, setHighlightOrderSeqs] = useState<ReadonlySet<number>>(new Set());
+
+  const goToPaymentRequestTab = (orderSeqs: ReadonlySet<number>) => {
+    setHighlightOrderSeqs(orderSeqs);
+    setActiveTab("paymentRequest");
+  };
 
   return (
     <div
@@ -55,7 +71,18 @@ export default function App() {
         })}
       </div>
 
-      {activeTab === "purchaseOrder" ? <PurchaseOrderTrackerPage /> : <PaymentRequestTrackerPage />}
+      {activeTab === "purchaseOrder" ? (
+        <PurchaseOrderTrackerPage
+          mainState={mainState}
+          paymentRequestState={paymentRequestState}
+          onInitiatedPaymentRequests={goToPaymentRequestTab}
+        />
+      ) : (
+        <PaymentRequestTrackerPage
+          paymentRequestState={paymentRequestState}
+          highlightOrderSeqs={highlightOrderSeqs}
+        />
+      )}
     </div>
   );
 }

@@ -3,9 +3,19 @@
 /** Trade 状态：系统维护字段，不可由用户手动编辑，仅通过"录Trade"操作变更 */
 export type TradeStatus = "未录入" | "已录入";
 
+/** 发起请款状态：系统维护字段，标记该采购订单是否已经生成过请款单，避免重复发起 */
+export type PaymentRequestInitiationStatus = "未发起" | "已发起";
+
+/** 合作附件生成状态：系统维护字段，标记该订单是否已经生成过合作附件（协议） */
+export type AgreementStatus = "未生成" | "已生成";
+
 export interface MainRow {
   /** Trade状态：系统自动维护，用户不可编辑 */
   tradeStatus: TradeStatus;
+  /** 发起请款状态：系统自动维护，用户不可编辑 */
+  paymentRequestStatus: PaymentRequestInitiationStatus;
+  /** 合作附件生成状态：系统自动维护，用户不可编辑 */
+  agreementStatus: AgreementStatus;
   /** 导入序号（不可删除）：只读，关联键 */
   seq: number;
   /** TO：填写 TO 的用户名（账号） */
@@ -56,6 +66,8 @@ export interface MainRow {
   expectedPaymentDate: string;
   /** 合作信息附件类型 */
   attachmentType: string;
+  /** 合作附件链接：系统生成，点击跳转查看具体的合作协议文件 */
+  agreementLink: string;
   /** 供应商合同编号：多个用逗号分隔 */
   vendorContractNo: string;
   /** 内容形式 */

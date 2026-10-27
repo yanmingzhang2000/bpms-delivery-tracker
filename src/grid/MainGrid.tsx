@@ -15,12 +15,15 @@ import type { MainRow } from "../data/types";
 import { isFieldMissing } from "../data/validation";
 import { mainColumns, MAIN_FROZEN_COLUMNS } from "./mainColumns";
 import {
+  agreementStatusCell,
   dateCell,
   dropdownCell,
   formatSlashDate,
+  linkCell,
   longTextCell,
   multiSelectCell,
   numberCell,
+  paymentRequestInitiationCell,
   readonlySeqCell,
   textCell,
   tradeStatusCell,
@@ -123,6 +126,10 @@ export default function MainGrid({
       switch (colDef.id) {
         case "tradeStatus":
           return tradeStatusCell(record.tradeStatus);
+        case "paymentRequestStatus":
+          return paymentRequestInitiationCell(record.paymentRequestStatus);
+        case "agreementStatus":
+          return agreementStatusCell(record.agreementStatus);
         case "seq":
           return readonlySeqCell(record.seq);
         case "to":
@@ -244,6 +251,8 @@ export default function MainGrid({
             availability.attachmentType.readonly,
             isFieldMissing(record, "attachmentType")
           );
+        case "agreementLink":
+          return linkCell(record.agreementLink);
         case "vendorContractNo":
           return textCell(record.vendorContractNo);
         case "contentForm":

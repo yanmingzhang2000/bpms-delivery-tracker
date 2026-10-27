@@ -35,9 +35,15 @@ import {
 interface PaymentRequestGridProps {
   rows: PaymentRequestRow[];
   onRowsChange: (rows: PaymentRequestRow[]) => void;
+  /** 需要高亮展示的订单序号集合（比如刚从采购订单页"发起请款"生成的那几条） */
+  highlightOrderSeqs?: ReadonlySet<number>;
 }
 
-export default function PaymentRequestGrid({ rows, onRowsChange }: PaymentRequestGridProps) {
+export default function PaymentRequestGrid({
+  rows,
+  onRowsChange,
+  highlightOrderSeqs,
+}: PaymentRequestGridProps) {
   const [columns, setColumns] = useState<GridColumn[]>(paymentRequestColumns);
 
   const getCellContent = useCallback(
@@ -140,6 +146,11 @@ export default function PaymentRequestGrid({ rows, onRowsChange }: PaymentReques
       width="100%"
       height="100%"
       rowHeight={34}
+      getRowThemeOverride={(row) =>
+        highlightOrderSeqs?.has(rows[row]?.orderSeq)
+          ? { bgCell: "#f1ebfb", bgCellMedium: "#e6daf7" }
+          : undefined
+      }
     />
   );
 }
