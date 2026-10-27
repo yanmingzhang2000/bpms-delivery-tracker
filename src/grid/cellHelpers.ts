@@ -5,19 +5,23 @@ import type {
   MultiSelectCellType,
 } from "@glideapps/glide-data-grid-cells";
 
+/** 必填但为空时的高亮样式：浅红底 + 红字，提醒用户需要补填 */
+const MISSING_THEME = { bgCell: "#fdecea", textDark: "#c0362c" };
+
 /** 普通只读/可编辑文本单元格 */
-export function textCell(value: string, readonly = false): GridCell {
+export function textCell(value: string, readonly = false, isMissing = false): GridCell {
   return {
     kind: GridCellKind.Text,
     data: value ?? "",
     displayData: value ?? "",
     allowOverlay: !readonly,
     readonly,
+    ...(isMissing ? { themeOverride: MISSING_THEME } : {}),
   };
 }
 
 /** 长文本单元格（备注/要求类，允许多行展示） */
-export function longTextCell(value: string, readonly = false): GridCell {
+export function longTextCell(value: string, readonly = false, isMissing = false): GridCell {
   return {
     kind: GridCellKind.Text,
     data: value ?? "",
@@ -25,17 +29,23 @@ export function longTextCell(value: string, readonly = false): GridCell {
     allowOverlay: !readonly,
     readonly,
     allowWrapping: true,
+    ...(isMissing ? { themeOverride: MISSING_THEME } : {}),
   } as GridCell;
 }
 
 /** 数字单元格 */
-export function numberCell(value: number | null | undefined, readonly = false): GridCell {
+export function numberCell(
+  value: number | null | undefined,
+  readonly = false,
+  isMissing = false
+): GridCell {
   return {
     kind: GridCellKind.Number,
     data: value ?? undefined,
     displayData: value === null || value === undefined ? "" : String(value),
     allowOverlay: !readonly,
     readonly,
+    ...(isMissing ? { themeOverride: MISSING_THEME } : {}),
   };
 }
 
@@ -70,7 +80,8 @@ export function tradeStatusCell(value: "未录入" | "已录入"): GridCell {
 export function dropdownCell(
   value: string,
   allowedValues: readonly string[],
-  readonly = false
+  readonly = false,
+  isMissing = false
 ): GridCell {
   const data: DropdownCellType["data"] = {
     kind: "dropdown-cell",
@@ -83,11 +94,12 @@ export function dropdownCell(
     copyData: value ?? "",
     data,
     readonly,
+    ...(isMissing ? { themeOverride: MISSING_THEME } : {}),
   } as unknown as GridCell;
 }
 
 /** 日期选择单元格（格式 YYYY/MM/DD），内部存储为 Date 对象 */
-export function dateCell(value: string, readonly = false): GridCell {
+export function dateCell(value: string, readonly = false, isMissing = false): GridCell {
   const date = value ? parseSlashDate(value) : undefined;
   const data: DatePickerType["data"] = {
     kind: "date-picker-cell",
@@ -101,6 +113,7 @@ export function dateCell(value: string, readonly = false): GridCell {
     copyData: value ?? "",
     data,
     readonly,
+    ...(isMissing ? { themeOverride: MISSING_THEME } : {}),
   } as unknown as GridCell;
 }
 
@@ -108,7 +121,8 @@ export function dateCell(value: string, readonly = false): GridCell {
 export function multiSelectCell(
   values: string[],
   options: readonly string[],
-  readonly = false
+  readonly = false,
+  isMissing = false
 ): GridCell {
   const data: MultiSelectCellType["data"] = {
     kind: "multi-select-cell",
@@ -123,6 +137,7 @@ export function multiSelectCell(
     copyData: (values ?? []).join(", "),
     data,
     readonly,
+    ...(isMissing ? { themeOverride: MISSING_THEME } : {}),
   } as unknown as GridCell;
 }
 

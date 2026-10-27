@@ -11,6 +11,7 @@ import {
 } from "@glideapps/glide-data-grid";
 import { allCells } from "@glideapps/glide-data-grid-cells";
 import type { MainRow } from "../data/types";
+import { isFieldMissing } from "../data/validation";
 import { mainColumns, MAIN_FROZEN_COLUMNS } from "./mainColumns";
 import {
   dateCell,
@@ -117,42 +118,83 @@ export default function MainGrid({
         case "seq":
           return readonlySeqCell(record.seq);
         case "to":
-          return textCell(record.to);
+          return textCell(record.to, false, isFieldMissing(record, "to"));
         case "studio":
-          return textCell(record.studio);
+          return textCell(record.studio, false, isFieldMissing(record, "studio"));
         case "offerNo":
-          return textCell(record.offerNo);
+          return textCell(record.offerNo, false, isFieldMissing(record, "offerNo"));
         case "internEmail":
           return textCell(record.internEmail);
         case "costType":
-          return dropdownCell(record.costType, COST_TYPE_OPTIONS);
+          return dropdownCell(
+            record.costType,
+            COST_TYPE_OPTIONS,
+            false,
+            isFieldMissing(record, "costType")
+          );
         case "influencerNo":
-          return textCell(record.influencerNo, availability.influencerNo.readonly);
+          return textCell(
+            record.influencerNo,
+            availability.influencerNo.readonly,
+            isFieldMissing(record, "influencerNo")
+          );
         case "vendorNo":
-          return textCell(record.vendorNo, availability.vendorNo.readonly);
+          return textCell(
+            record.vendorNo,
+            availability.vendorNo.readonly,
+            isFieldMissing(record, "vendorNo")
+          );
         case "externalQuoteAmount":
-          return numberCell(record.externalQuoteAmount);
+          return numberCell(
+            record.externalQuoteAmount,
+            false,
+            isFieldMissing(record, "externalQuoteAmount")
+          );
         case "externalQuoteCurrency":
-          return dropdownCell(record.externalQuoteCurrency, CURRENCY_OPTIONS);
+          return dropdownCell(
+            record.externalQuoteCurrency,
+            CURRENCY_OPTIONS,
+            false,
+            isFieldMissing(record, "externalQuoteCurrency")
+          );
         case "orderDate":
-          return dateCell(record.orderDate);
+          return dateCell(record.orderDate, false, isFieldMissing(record, "orderDate"));
         case "expectedDeliveryDate":
-          return dateCell(record.expectedDeliveryDate);
+          return dateCell(
+            record.expectedDeliveryDate,
+            false,
+            isFieldMissing(record, "expectedDeliveryDate")
+          );
         case "actualDeliveryDate":
           return dateCell(record.actualDeliveryDate);
         case "deliveryLinks":
           return longTextCell(record.deliveryLinks);
         case "feeBearer":
-          return dropdownCell(record.feeBearer, FEE_BEARER_OPTIONS, availability.feeBearer.readonly);
+          return dropdownCell(
+            record.feeBearer,
+            FEE_BEARER_OPTIONS,
+            availability.feeBearer.readonly,
+            isFieldMissing(record, "feeBearer")
+          );
         case "paymentCycle":
-          return dropdownCell(record.paymentCycle, PAYMENT_CYCLE_OPTIONS, availability.paymentCycle.readonly);
+          return dropdownCell(
+            record.paymentCycle,
+            PAYMENT_CYCLE_OPTIONS,
+            availability.paymentCycle.readonly,
+            isFieldMissing(record, "paymentCycle")
+          );
         case "downPaymentRatio":
-          return numberCell(record.downPaymentRatio, record.paymentCycle !== "进度款");
+          return numberCell(
+            record.downPaymentRatio,
+            record.paymentCycle !== "进度款",
+            isFieldMissing(record, "downPaymentRatio")
+          );
         case "paymentMethod":
           return dropdownCell(
             record.paymentMethod,
             PAYMENT_METHOD_OPTIONS,
-            availability.paymentMethod.readonly
+            availability.paymentMethod.readonly,
+            isFieldMissing(record, "paymentMethod")
           );
         case "contractEntity":
           return dropdownCell(
@@ -172,33 +214,50 @@ export default function MainGrid({
           return dropdownCell(
             record.currency,
             CURRENCY_OPTIONS,
-            Boolean(ENTITY_FIXED_CURRENCY[record.contractEntity])
+            Boolean(ENTITY_FIXED_CURRENCY[record.contractEntity]),
+            isFieldMissing(record, "currency")
           );
         case "payeeEntityNo":
-          return textCell(record.payeeEntityNo, availability.payeeEntityNo.readonly);
+          return textCell(
+            record.payeeEntityNo,
+            availability.payeeEntityNo.readonly,
+            isFieldMissing(record, "payeeEntityNo")
+          );
         case "expectedPaymentDate":
-          return dateCell(record.expectedPaymentDate, availability.expectedPaymentDate.readonly);
+          return dateCell(
+            record.expectedPaymentDate,
+            availability.expectedPaymentDate.readonly,
+            isFieldMissing(record, "expectedPaymentDate")
+          );
         case "attachmentType":
           return dropdownCell(
             record.attachmentType,
             ATTACHMENT_TYPE_OPTIONS,
-            availability.attachmentType.readonly
+            availability.attachmentType.readonly,
+            isFieldMissing(record, "attachmentType")
           );
         case "vendorContractNo":
           return textCell(record.vendorContractNo);
         case "contentForm":
-          return dropdownCell(record.contentForm, CONTENT_FORM_OPTIONS, availability.contentForm.readonly);
+          return dropdownCell(
+            record.contentForm,
+            CONTENT_FORM_OPTIONS,
+            availability.contentForm.readonly,
+            isFieldMissing(record, "contentForm")
+          );
         case "authDuration":
           return dropdownCell(
             record.authDuration,
             AUTH_DURATION_OPTIONS,
-            availability.authDuration.readonly
+            availability.authDuration.readonly,
+            isFieldMissing(record, "authDuration")
           );
         case "purchaseContent":
           return multiSelectCell(
             record.purchaseContent,
             PURCHASE_CONTENT_OPTIONS,
-            availability.purchaseContent.readonly
+            availability.purchaseContent.readonly,
+            isFieldMissing(record, "purchaseContent")
           );
         case "otherRequirements":
           return longTextCell(record.otherRequirements);
